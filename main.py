@@ -62,11 +62,16 @@ async def send_invite(event):
         invite_link = await generate_invite(group_id, user_id)
         await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate a new invite link for this group after **1 hour**. If you need a new invite link sooner, please contact the group admin @amber_66n.")
 
-# Automatically delete service messages
+# Automatically delete service messages (Bot added, Join/Leave messages)
 @client.on(events.ChatAction)
 async def delete_service_messages(event):
     if event.user_added or event.user_joined or event.user_left:
         await asyncio.sleep(1)  # Wait 1 second before deleting
+        await client(DeleteMessagesRequest(event.chat_id, [event.action_message.id]))
+
+    # If the bot itself was added, delete the message
+    elif event.user_id == (await client.get_me()).id:
+        await asyncio.sleep(1)  # Wait 1 second
         await client(DeleteMessagesRequest(event.chat_id, [event.action_message.id]))
 
 # Fancy message when using the /wipeout command
