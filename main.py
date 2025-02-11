@@ -26,8 +26,9 @@ async def generate_invite(group_id, user_id):
         return "⚠ You can generate an invite link for a group only once. If you need a new invite link, please contact the group admin @amber_66n."
 
     try:
+        peer = await client.get_entity(group_id)  # Convert group ID to valid peer
         invite = await client(ExportChatInviteRequest(
-            peer=int(group_id),  # Ensure group_id is an integer
+            peer=peer,
             usage_limit=1  # One-time use
         ))
         if user_id not in user_invites:
@@ -38,16 +39,22 @@ async def generate_invite(group_id, user_id):
         print(f"Error generating invite link: {str(e)}")
         return f"⚠️ Failed to generate an invite link: {str(e)}"
 
-# Command to generate an invite link
+# Command to request an invite link in DM
 @client.on(events.NewMessage(pattern="^/invite$"))
-async def send_invite(event):
-    chat_id = event.chat_id  # Detects which group the command is used in
-    user_id = event.sender_id  # Detects which user requested
+async def request_group_id(event):
+    if event.is_private:  # Ensure it's a private chat
+        await event.reply("🔹 Please send me the **group ID** where you want an invite link (Example: `-1001234567890`).")
 
-    invite_link = await generate_invite(chat_id, user_id)
-    
-    # Sending the invite link along with the restriction message
-    await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once. If you need a new invite link, please contact the group admin @amber_66n.")
+# Handle the user's group ID response
+@client.on(events.NewMessage())
+async def send_invite(event):
+    if event.is_private and event.text.startswith("-100"):  # Check for valid group ID format
+        user_id = event.sender_id
+        group_id = event.text.strip()
+
+        invite_link = await generate_invite(group_id, user_id)
+        await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once. If you need a new invite link, please contact the group admin @amber_66n.")
 
 print("✅ Bot is running...")
 client.run_until_disconnected()
+
