@@ -53,7 +53,7 @@ async def send_invite(event):
 
     if event.is_private:  # If the user sends /invite in DM
         user_requests[user_id] = True  # Store user request state
-        await event.reply("📌 Please send me the **Group ID** where you want an invite link.")
+        await event.reply("📌 Please send me the Group ID where you want an invite link.")
         return  
 
     # If used in a group, generate invite directly
@@ -71,7 +71,7 @@ async def handle_group_id(event):
 
         # Check if group_id is a valid integer
         if not group_id.lstrip('-').isdigit():
-            await event.reply("⚠️ Invalid Group ID! Please send a correct group ID (e.g., `-1001234567890`).")
+            await event.reply("⚠️ Invalid Group ID! Please send a correct group ID (e.g., -1001234567890).")
             return  # Don't remove from requests, allow retry
 
         group_id = int(group_id)  # Convert to integer
@@ -89,4 +89,3 @@ async def handle_group_id(event):
 
 print("✅ Bot is running...")
 client.run_until_disconnected()
-
