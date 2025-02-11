@@ -1,7 +1,5 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import ExportChatInviteRequest
-import json
-import os
 
 # Your API Credentials
 api_id = 25737227
@@ -11,70 +9,64 @@ bot_token = "7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo"
 # Initialize the bot
 bot = TelegramClient('bot', api_id, api_hash).start(bot_token=bot_token)
 
-# File to store user invites
-INVITE_DATA_FILE = "user_invites.json"
+# Dictionary to track users who have already received an invite
+user_invites = {}
 
-# Load stored user invites
-if os.path.exists(INVITE_DATA_FILE):
-    with open(INVITE_DATA_FILE, "r") as f:
-        user_invites = json.load(f)
-else:
-    user_invites = {}
+# File to store the detected group ID
+GROUP_ID_FILE = "group_id.txt"
 
-# Event to detect new groups and store group IDs
+# Function to save detected group ID
+def save_group_id(group_id):
+    with open(GROUP_ID_FILE, "w") as f:
+        f.write(str(group_id))
+
+# Function to read the stored group ID
+def get_saved_group_id():
+    try:
+        with open(GROUP_ID_FILE, "r") as f:
+            return int(f.read().strip())
+    except:
+        return None
+
+# Auto-detect group ID when bot is added
 @bot.on(events.ChatAction)
-async def handler(event):
-    if event.user_added or event.user_joined and event.is_group:
+async def group_handler(event):
+    if event.is_group and event.chat_id:
         group_id = event.chat_id
-        group_name = event.chat.title or "Unknown Group"
-        print(f"✅ Bot added to a new group: {group_name} (ID: {group_id})")
+        save_group_id(group_id)
+        print(f"✅ Bot added to group: {event.chat.title} (ID: {group_id})")
+        await event.respond(f"✅ Bot detected this group!\n📌 Group ID: {group_id}")
 
-        # Save Group ID
-        with open("group_ids.txt", "a") as f:
-            f.write(f"{group_id} - {group_name}\n")
-
-        await event.respond(f"✅ Bot successfully added to {group_name}!\n📌 Group ID: {group_id}")
-
-# Event to generate a one-time invite link when someone types /invite
+# Generate a one-time invite link when user sends /invite
 @bot.on(events.NewMessage(pattern='/invite'))
 async def invite_handler(event):
     user_id = event.sender_id
-    chat_id = event.chat_id
+    chat_id = get_saved_group_id()
 
-    # Check if the command was sent in a group
-    if event.is_group:
-        await event.respond("⚠️ Please send this command in **private chat** with me.")
+    if not chat_id:
+        await event.respond("⚠️ No group detected. Add the bot to a group first!")
         return
 
-    # Check if the user has already requested an invite
-    if str(user_id) in user_invites:
+    # Check if the user has already received an invite
+    if user_id in user_invites:
         await event.respond("⚠️ You have already received an invite link. You can't generate more!")
         return
 
     try:
-        # Get the stored group ID
-        with open("group_ids.txt", "r") as f:
-            last_line = f.readlines()[-1]
-            group_id = int(last_line.split(" - ")[0])  # Extract group ID
-
-        # Generate a single-use invite link
+        # Generate a one-time invite link
         invite = await bot(ExportChatInviteRequest(
-            peer=group_id,  # Use the stored group ID
-            usage_limit=1,  # Allow only one person to join
-            expire_date=None  # No expiration time (optional)
+            peer=chat_id,  
+            usage_limit=1,  
+            expire_date=None  
         ))
 
         invite_link = invite.link
-
-        # Store that the user has received an invite
-        user_invites[str(user_id)] = invite_link
-        with open(INVITE_DATA_FILE, "w") as f:
-            json.dump(user_invites, f)
+        user_invites[user_id] = invite_link  
 
         await event.respond(f"🔗 Here is your one-time invite link:\n{invite_link}\n⚠️ This link can only be used once!")
 
     except Exception as e:
-        await event.respond(f"⚠️ Failed to generate invite link. Error: {str(e)}")
+        await event.respond(f"⚠️ Failed to generate invite link. Make sure the bot is an admin.\nError: {str(e)}")
 
 # Start the bot
 print("🤖 Bot is running...")
