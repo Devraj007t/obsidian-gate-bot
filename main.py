@@ -26,8 +26,9 @@ async def generate_invite(group_id, user_id):
         return "⚠ You have already generated an invite link for this group."
 
     try:
+        peer = await client.get_entity(group_id)  # Ensures valid peer
         invite = await client(ExportChatInviteRequest(
-            peer=int(group_id),  # Ensure group_id is an integer
+            peer=peer,
             usage_limit=1  # One-time use
         ))
         if user_id not in user_invites:
@@ -35,7 +36,6 @@ async def generate_invite(group_id, user_id):
         user_invites[user_id].append(group_id)
         return invite.link
     except Exception as e:
-        print(f"Error generating invite link: {str(e)}")
         return f"⚠️ Failed to generate an invite link: {str(e)}"
 
 # Command to generate an invite link
