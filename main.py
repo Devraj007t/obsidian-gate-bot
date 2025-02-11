@@ -50,13 +50,13 @@ async def generate_invite(group_id, user_id):
         print(f"Error generating invite link: {str(e)}")
         return f"⚠️ Failed to generate an invite link: {str(e)}"
 
-# Auto-delete bot's "✅ Bot added" message
+# Auto-delete bot's "✅ Bot added" message after 1 second
 @client.on(events.ChatAction)
 async def on_chat_action(event):
     if event.user_added and event.user_id == (await client.get_me()).id:
         message = await event.reply(f"✅ Bot added to {event.chat.title}!\n📌 Group ID: {event.chat_id}")
         
-        # Wait for 1 seconds before deleting the message
+        # Wait for 1 second before deleting the message
         await asyncio.sleep(1)
         
         # Delete the message
