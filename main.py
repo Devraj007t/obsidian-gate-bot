@@ -5,7 +5,7 @@ from telethon.tl.functions.messages import ExportChatInviteRequest
 API_ID = 25737227 
 API_HASH = "08827a15f8d9141591806e51e5614a32"
 BOT_TOKEN = "7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo"
-GROUP_ID = -1002298623402  # Replace with your actual Group ID
+GROUP_ID = -1002332542742  # Replace with your actual Group ID
 
 # Initialize the bot
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
@@ -42,4 +42,3 @@ async def send_invite(event):
 
 print("✅ Bot is running...")
 client.run_until_disconnected()
-
