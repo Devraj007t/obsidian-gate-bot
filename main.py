@@ -1,31 +1,25 @@
 from telethon import TelegramClient, events
-from telethon.tl.functions.messages import ExportChatInviteRequest
 
-# API Credentials
-API_ID = 25737227 
-API_HASH = "08827a15f8d9141591806e51e5614a32"
-BOT_TOKEN = "7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo"
-GROUP_ID = -1002332542742  # Replace with your actual Group ID
-
+# Your API details 
+api_id = 25737227 
+api_hash = "08827a15f8d9141591806e51e5614a32" 
+bot_token = "7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo" 
 # Initialize the bot
-client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+bot = TelegramClient('bot', api_id, api_hash).start(bot_token=bot_token)
 
-# Function to generate a unique invite link
-async def generate_invite():
-    try:
-        invite = await client(ExportChatInviteRequest(
-            peer=GROUP_ID,
-            usage_limit=1  # The link expires after one use
-        ))
-        return invite.link
-    except Exception as e:
-        return f"Error: {str(e)}"
+# Event to detect new group and store group ID
+@bot.on(events.ChatAction)
+async def handler(event):
+    if event.user_added or event.user_joined and event.is_group:
+        group_id = event.chat_id
+        group_name = event.chat.title
+        print(f"Bot added to a new group: {group_name} (ID: {group_id})")
 
-# Command to generate an invite link
-@client.on(events.NewMessage(pattern="^/invite$"))
-async def send_invite(event):
-    invite_link = await generate_invite()
-    await event.reply(f"🎟 Here is your one-time invite link:\n{invite_link}")
+        # Save the group ID to a file (optional)
+        with open("group_ids.txt", "a") as f:
+            f.write(f"{group_id} - {group_name}\n")
 
-print("✅ Bot is running...")
-client.run_until_disconnected()
+        await event.respond(f"✅ Bot added to {group_name}!\n📌 Group ID: {group_id}")
+
+print("🤖 Bot is running...")
+bot.run_until_disconnected()
