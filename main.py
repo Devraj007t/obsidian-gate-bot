@@ -1,5 +1,6 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import ExportChatInviteRequest
+from telethon.errors.rpcerrorlist import ChatAdminRequiredError, UserAdminInvalidError
 import os
 
 # Load API credentials from environment variables
@@ -35,6 +36,11 @@ async def generate_invite(group_id, user_id):
             user_invites[user_id] = []
         user_invites[user_id].append(group_id)
         return invite.link
+
+    except ChatAdminRequiredError:
+        return "⚠ The bot must be an admin with invite link permissions to generate an invite."
+    except UserAdminInvalidError:
+        return "⚠ The bot is not an admin in this group. Please make it an admin and try again."
     except Exception as e:
         return f"⚠️ Failed to generate an invite link: {str(e)}"
 
