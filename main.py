@@ -1,6 +1,5 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.errors.rpcerrorlist import ChatAdminRequiredError, UserAdminInvalidError
 import os
 
 # Load API credentials from environment variables
@@ -17,7 +16,6 @@ if not API_ID or not API_HASH or not BOT_TOKEN:
 
 # Store user invite requests
 user_invites = {}  # {user_id: [group_id1, group_id2]}
-user_requests = {}  # Stores users who are requesting group invites
 
 # Initialize the bot
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
@@ -25,67 +23,31 @@ client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOK
 # Function to generate a unique invite link
 async def generate_invite(group_id, user_id):
     if user_id in user_invites and group_id in user_invites[user_id]:
-        return "⚠ You have already generated an invite link for this group."
+        return "⚠ You can generate an invite link for a group only once. If you need a new invite link, please contact the group admin @amber_66n."
 
     try:
-        peer = await client.get_entity(group_id)  # Ensures valid peer
         invite = await client(ExportChatInviteRequest(
-            peer=peer,
+            peer=int(group_id),  # Ensure group_id is an integer
             usage_limit=1  # One-time use
         ))
         if user_id not in user_invites:
             user_invites[user_id] = []
         user_invites[user_id].append(group_id)
         return invite.link
-
-    except ChatAdminRequiredError:
-        return "⚠ The bot must be an admin with invite link permissions to generate an invite."
-    except UserAdminInvalidError:
-        return "⚠ The bot is not an admin in this group. Please make it an admin and try again."
     except Exception as e:
+        print(f"Error generating invite link: {str(e)}")
         return f"⚠️ Failed to generate an invite link: {str(e)}"
 
-# Command to request an invite link
+# Command to generate an invite link
 @client.on(events.NewMessage(pattern="^/invite$"))
 async def send_invite(event):
-    chat_id = event.chat_id  # Detects where the command is used
-    user_id = event.sender_id  
+    chat_id = event.chat_id  # Detects which group the command is used in
+    user_id = event.sender_id  # Detects which user requested
 
-    if event.is_private:  # If the user sends /invite in DM
-        user_requests[user_id] = True  # Store user request state
-        await event.reply("📌 Please send me the Group ID where you want an invite link.")
-        return  
-
-    # If used in a group, generate invite directly
     invite_link = await generate_invite(chat_id, user_id)
-    await event.reply(f"🎟 Your invite link:\n{invite_link}")
-
-# Handle group ID input from users in DM
-@client.on(events.NewMessage())
-async def handle_group_id(event):
-    user_id = event.sender_id
-
-    # Check if user previously requested an invite
-    if user_id in user_requests and event.is_private:
-        group_id = event.text.strip()
-
-        # Check if group_id is a valid integer
-        if not group_id.lstrip('-').isdigit():
-            await event.reply("⚠️ Invalid Group ID! Please send a correct group ID (e.g., -1001234567890).")
-            return  # Don't remove from requests, allow retry
-
-        group_id = int(group_id)  # Convert to integer
-        invite_link = await generate_invite(group_id, user_id)
-
-        # If invite link generation fails, allow retry
-        if "⚠️" in invite_link:
-            await event.reply(invite_link)
-            return  
-
-        await event.reply(f"🎟 Here is your invite link:\n{invite_link}")
-
-        # Remove the user from request tracking only after successful invite
-        del user_requests[user_id]
+    
+    # Sending the invite link along with the restriction message
+    await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once. If you need a new invite link, please contact the group admin @amber_66n.")
 
 print("✅ Bot is running...")
 client.run_until_disconnected()
