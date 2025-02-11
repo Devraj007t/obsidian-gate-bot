@@ -47,8 +47,12 @@ async def generate_invite(group_id, user_id):
 # Command to generate an invite link
 @client.on(events.NewMessage(pattern="^/invite$"))
 async def send_invite(event):
-    chat_id = event.chat_id  # Detects which group the command is used in
-    user_id = event.sender_id  # Detects which user requested
+    chat_id = event.chat_id  # Detects where the command is used
+    user_id = event.sender_id  
+
+    if event.is_private:  # If the user sends /invite in DM
+        await event.reply("⚠️ This command only works in groups where I am an admin.")
+        return  
 
     invite_link = await generate_invite(chat_id, user_id)
     await event.reply(f"🎟 Your invite link:\n{invite_link}")
