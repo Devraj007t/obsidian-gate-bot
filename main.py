@@ -3,13 +3,9 @@ from telethon.tl.functions.messages import ExportChatInviteRequest
 import os
 
 # Load API credentials from environment variables
-API_ID = os.getenv("TELEGRAM_API_ID")
+API_ID = int(os.getenv("TELEGRAM_API_ID", 0))  # Ensure it's an integer
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-# Convert API_ID to integer
-if API_ID:
-    API_ID = int(API_ID)  # Convert string to integer
 
 if not API_ID or not API_HASH or not BOT_TOKEN:
     raise ValueError("⚠ API credentials or bot token not set. Please check your environment variables.")
@@ -26,7 +22,8 @@ async def generate_invite(group_id, user_id):
         return "⚠ You can generate an invite link for a group only once. If you need a new invite link, please contact the group admin @amber_66n."
 
     try:
-        peer = await client.get_entity(group_id)  # Convert group ID to valid peer
+        group_id = int(group_id)  # Ensure group_id is an integer
+        peer = await client.get_entity(group_id)  # Convert to valid peer
         invite = await client(ExportChatInviteRequest(
             peer=peer,
             usage_limit=1  # One-time use
