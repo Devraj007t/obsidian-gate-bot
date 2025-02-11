@@ -1,10 +1,15 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import ExportChatInviteRequest
+import os
+import asyncio
 
-# API Credentials
-API_ID = 25737227
-API_HASH = "08827a15f8d9141591806e51e5614a32"
-BOT_TOKEN = "7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo"
+# Load API credentials from environment variables
+API_ID = os.getenv("25737227")
+API_HASH = os.getenv("08827a15f8d9141591806e51e5614a32")
+BOT_TOKEN = os.getenv("7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo")
+
+if not API_ID or not API_HASH or not BOT_TOKEN:
+    raise ValueError("API credentials or bot token not set")
 
 # Store user invite requests
 user_invites = {}  # {user_id: [group_id1, group_id2]}
@@ -27,6 +32,7 @@ async def generate_invite(group_id, user_id):
         user_invites[user_id].append(group_id)
         return invite.link
     except Exception as e:
+        print(f"Error generating invite link: {str(e)}")
         return f"⚠️ Failed to generate an invite link: {str(e)}"
 
 # Command to generate an invite link
