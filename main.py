@@ -72,13 +72,19 @@ async def handle_group_id(event):
         # Check if group_id is a valid integer
         if not group_id.lstrip('-').isdigit():
             await event.reply("⚠️ Invalid Group ID! Please send a correct group ID (e.g., `-1001234567890`).")
-            return
+            return  # Don't remove from requests, allow retry
 
         group_id = int(group_id)  # Convert to integer
         invite_link = await generate_invite(group_id, user_id)
+
+        # If invite link generation fails, allow retry
+        if "⚠️" in invite_link:
+            await event.reply(invite_link)
+            return  
+
         await event.reply(f"🎟 Here is your invite link:\n{invite_link}")
 
-        # Remove the user from request tracking
+        # Remove the user from request tracking only after successful invite
         del user_requests[user_id]
 
 print("✅ Bot is running...")
