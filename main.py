@@ -4,9 +4,9 @@ import os
 import asyncio
 
 # Load API credentials from environment variables
-API_ID = os.getenv("25737227")
-API_HASH = os.getenv("08827a15f8d9141591806e51e5614a32")
-BOT_TOKEN = os.getenv("7518120312:AAG0zraxb6q-iv2ZdbdUg1Z9v4ye2aI_URo")
+API_ID = os.getenv("TELEGRAM_API_ID")
+API_HASH = os.getenv("TELEGRAM_API_HASH")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 if not API_ID or not API_HASH or not BOT_TOKEN:
     raise ValueError("API credentials or bot token not set")
