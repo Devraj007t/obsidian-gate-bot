@@ -65,15 +65,28 @@ async def send_invite(event):
         invite_link = await generate_invite(group_id, user_id)
         await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once per hour. If you need a new invite link sooner, please contact the group admin @amber_66n.")
 
-# Command to clean bot service messages manually
+# Command to clean bot service messages (Admins only)
 @client.on(events.NewMessage(pattern="^/wipeout$"))
 async def clean_service_messages(event):
     if event.is_group:
+        # Check if the user is an admin
+        chat = await client.get_participants(event.chat_id, filter=ChannelParticipantsAdmins)
+        admin_ids = [admin.id for admin in chat]
+
+        if event.sender_id not in admin_ids:
+            await event.reply("🚫 Only group admins can use this command!")
+            return
+
+        deleted_count = 0
         async for message in client.iter_messages(event.chat_id, from_user="me"):
             if "✅ Bot added to" in message.text and "📌 Group ID:" in message.text:
                 await client(DeleteMessagesRequest(event.chat_id, [message.id]))
-                await event.reply("✅ Wiped out all bot service messages!")
-                return
+                deleted_count += 1
+
+        if deleted_count > 0:
+            await event.reply("🧹 **Cleanup complete!** From now on, I'll delete all service messages automatically.")
+        else:
+            await event.reply("🤷 No bot service messages found to delete.")
 
 # Auto-delete bot service messages
 @client.on(events.NewMessage())
@@ -83,5 +96,17 @@ async def auto_delete_bot_message(event):
             await asyncio.sleep(1)  # Wait 1 second
             await client.delete_messages(event.chat_id, event.message.id)
 
+# Help command for new admins
+@client.on(events.NewMessage(pattern="^/help$"))
+async def help_command(event):
+    if event.is_group:
+        await event.reply(
+            "🔹 **Available Commands** 🔹\n\n"
+            "/invite - Get an invite link for a group (in DM only)\n"
+            "/wipeout - 🧹 Delete all bot service messages (Admins Only)\n"
+            "/help - Show this command list"
+        )
+
 print("✅ Bot is running...")
 client.run_until_disconnected()
+
