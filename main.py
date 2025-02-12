@@ -1,8 +1,13 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.channels import GetParticipantRequest
-from telethon.tl.types import ChannelParticipantAdmin, ChannelParticipantCreator, MessageActionChatAddUser, MessageActionChatJoinedByLink, MessageActionChatDeleteUser
+from telethon.tl.types import (
+    ChannelParticipantAdmin, 
+    ChannelParticipantCreator, 
+    MessageActionChatAddUser, 
+    MessageActionChatJoinedByLink, 
+    MessageActionChatDeleteUser
+)
 import os
-import asyncio
 
 # Load API credentials from environment variables
 API_ID = int(os.getenv("TELEGRAM_API_ID", 0))  # Ensure it's an integer
@@ -15,7 +20,7 @@ if not API_ID or not API_HASH or not BOT_TOKEN:
 # Initialize the bot
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# Store wipeout-enabled groups
+# Store enabled groups for service message deletion
 wipeout_enabled_groups = set()
 
 # Function to check if a user is an admin
@@ -23,7 +28,8 @@ async def is_admin(group_id, user_id):
     try:
         participant = await client(GetParticipantRequest(group_id, user_id))
         return isinstance(participant.participant, (ChannelParticipantAdmin, ChannelParticipantCreator))
-    except:
+    except Exception as e:
+        print(f"⚠ Error checking admin status: {e}")
         return False
 
 # Command to enable service message deletion
@@ -32,7 +38,7 @@ async def enable_wipeout(event):
     chat_id = event.chat_id
     sender_id = event.sender_id
 
-    # Check if user is an admin
+    # Check if the user is an admin
     if not await is_admin(chat_id, sender_id):
         await event.reply("🚫 Only admins can enable service message deletion!")
         return
@@ -54,8 +60,8 @@ async def delete_service_messages(event):
             await event.delete()
             print(f"✅ Deleted service message in {chat_id}")
         except Exception as e:
-            print(f"⚠️ Failed to delete service message in {chat_id}: {str(e)}")
+            print(f"⚠ Failed to delete service message in {chat_id}: {str(e)}")
 
-print("✅ Bot is running...")
+print("✅ Bot is running without crashes...")
 client.run_until_disconnected()
 
