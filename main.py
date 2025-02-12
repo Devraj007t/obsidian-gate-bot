@@ -14,13 +14,13 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not API_ID or not API_HASH or not BOT_TOKEN:
     raise ValueError("⚠ API credentials or bot token not set. Please check your environment variables.")
 
-# Store user invite requests with timestamps
-user_invites = {}  # {user_id: {group_id: timestamp}}
+# Store user invite requests with timestamps (user_id -> group_id -> timestamp)
+user_invites = {}  # Example: {123456789: {"-100987654321": 1700000000}}
 
 # Initialize the bot
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# Function to generate a unique invite link
+# Function to generate an invite link with cooldown
 async def generate_invite(group_id, user_id):
     current_time = time.time()
 
@@ -31,7 +31,9 @@ async def generate_invite(group_id, user_id):
 
         if time_passed < 3600:  # 1 hour in seconds
             remaining_time = int(3600 - time_passed)
-            return f"⏳ You can generate a new invite link for this group in {remaining_time} seconds."
+            minutes = remaining_time // 60
+            seconds = remaining_time % 60
+            return f"⏳ You can generate a new invite link for this group in **{minutes} minutes {seconds} seconds**."
 
     try:
         group_id = int(group_id)  # Ensure group_id is an integer
@@ -67,7 +69,7 @@ async def send_invite(event):
         invite_link = await generate_invite(group_id, user_id)
         await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once per hour. If you need a new invite link sooner, please contact the group admin @amber_66n.")
 
-# Function to check if user is an admin or owner
+# Function to check if a user is an admin or owner
 async def is_admin_or_owner(chat_id, user_id):
     try:
         participant = await client(GetParticipantRequest(chat_id, user_id))
