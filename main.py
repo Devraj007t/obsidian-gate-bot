@@ -1,5 +1,7 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import ExportChatInviteRequest, DeleteMessagesRequest
+from telethon.tl.functions.channels import GetParticipantRequest
+from telethon.tl.types import ChannelParticipantsAdmins, ChannelParticipantCreator
 import os
 import asyncio
 import time
@@ -14,9 +16,18 @@ if not API_ID or not API_HASH or not BOT_TOKEN:
 
 # Store user invite requests with timestamps
 user_invites = {}  # {user_id: {group_id: timestamp}}
+wipeout_enabled_groups = set()  # Stores groups where /wipeout is enabled
 
 # Initialize the bot
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+
+# Function to check if user is an admin or owner
+async def is_admin_or_owner(chat_id, user_id):
+    try:
+        participant = await client(GetParticipantRequest(chat_id, user_id))
+        return isinstance(participant.participant, (ChannelParticipantsAdmins, ChannelParticipantCreator))
+    except:
+        return False
 
 # Function to generate a unique invite link
 async def generate_invite(group_id, user_id):
@@ -65,23 +76,34 @@ async def send_invite(event):
         invite_link = await generate_invite(group_id, user_id)
         await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once per hour. If you need a new invite link sooner, please contact the group admin @amber_66n.")
 
-# Command to clean bot service messages manually
+# Command to enable /wipeout (Admins & Owner Only)
 @client.on(events.NewMessage(pattern="^/wipeout$"))
-async def clean_service_messages(event):
-    if event.is_group:
-        async for message in client.iter_messages(event.chat_id, from_user="me"):
-            if "✅ Bot added to" in message.text and "📌 Group ID:" in message.text:
-                await client(DeleteMessagesRequest(event.chat_id, [message.id]))
-                await event.reply("✅ Wiped out all bot service messages!")
-                return
+async def enable_wipeout(event):
+    chat_id = event.chat_id
+    sender_id = event.sender_id
+
+    if not await is_admin_or_owner(chat_id, sender_id):
+        await event.reply("⚠ Only admins and the group owner can enable service message deletion!")
+        return
+
+    wipeout_enabled_groups.add(chat_id)
+    await event.reply("🧹 From now on, I'll delete all service messages automatically! 🚀")
 
 # Auto-delete bot service messages
 @client.on(events.NewMessage())
 async def auto_delete_bot_message(event):
-    if event.is_group and event.sender_id == (await client.get_me()).id:
-        if "✅ Bot added to" in event.raw_text and "📌 Group ID:" in event.raw_text:
-            await asyncio.sleep(1)  # Wait 1 second
-            await client.delete_messages(event.chat_id, event.message.id)
+    chat_id = event.chat_id
+
+    if event.is_group and chat_id in wipeout_enabled_groups:
+        if event.sender_id == (await client.get_me()).id:
+            # Delete specific service messages
+            if "✅ Bot added to" in event.raw_text or "📌 Group ID:" in event.raw_text:
+                await asyncio.sleep(1)  # Wait 1 second
+                await client.delete_messages(event.chat_id, event.message.id)
+            elif event.raw_text in ["✅ Bot added!", "User joined", "User left", "Member left"]:
+                await asyncio.sleep(1)
+                await client.delete_messages(event.chat_id, event.message.id)
 
 print("✅ Bot is running...")
 client.run_until_disconnected()
+
