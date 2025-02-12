@@ -29,11 +29,11 @@ async def is_admin_or_owner(chat_id, user_id):
     except:
         return False
 
-# Function to generate a unique invite link
+# Function to generate a unique invite link with cooldown
 async def generate_invite(group_id, user_id):
     current_time = time.time()
 
-    # If user has requested an invite link for this group before
+    # Ensure cooldown is respected for the same group
     if user_id in user_invites and group_id in user_invites[user_id]:
         last_request_time = user_invites[user_id][group_id]
         time_passed = current_time - last_request_time
