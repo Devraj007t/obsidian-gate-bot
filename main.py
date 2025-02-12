@@ -5,7 +5,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 # Load API credentials from environment variables
-API_ID = int(os.getenv("TELEGRAM_API_ID", 0))  # Ensure it's an integer
+API_ID = int(os.getenv("TELEGRAM_API_ID", 0))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
@@ -17,6 +17,7 @@ client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOK
 
 # Store invite cooldowns (user_id -> {group_id -> next_allowed_time})
 user_invite_timers = {}
+wipeout_enabled_groups = set()  # Groups where auto-deletion is enabled
 
 # Function to generate a unique invite link
 async def generate_invite(group_id, user_id):
@@ -49,13 +50,13 @@ async def generate_invite(group_id, user_id):
 # Command to request an invite link in DM
 @client.on(events.NewMessage(pattern="^/invite$"))
 async def request_group_id(event):
-    if event.is_private:  # Ensure it's a private chat
+    if event.is_private:
         await event.reply("🔹 Please send me the group ID where you want an invite link (Example: -1001234567890).")
 
 # Handle the user's group ID response
 @client.on(events.NewMessage())
 async def send_invite(event):
-    if event.is_private and event.text.startswith("-100"):  # Check for valid group ID format
+    if event.is_private and event.text.startswith("-100"):
         user_id = event.sender_id
         group_id = event.text.strip()
 
@@ -65,25 +66,34 @@ async def send_invite(event):
 # Automatically delete service messages (Bot added, Join/Leave messages)
 @client.on(events.ChatAction)
 async def delete_service_messages(event):
-    if event.user_added or event.user_joined or event.user_left:
-        await asyncio.sleep(1)  # Wait 1 second before deleting
+    if event.chat_id in wipeout_enabled_groups:  # Only delete if /wipeout is enabled in the group
+        await asyncio.sleep(1)
         await client(DeleteMessagesRequest(event.chat_id, [event.action_message.id]))
 
-    # If the bot itself was added, delete the message
-    elif event.user_id == (await client.get_me()).id:
-        await asyncio.sleep(1)  # Wait 1 second
+# When bot is added, delete system message
+@client.on(events.ChatAction)
+async def delete_bot_added_message(event):
+    if event.user_id == (await client.get_me()).id:
+        await asyncio.sleep(1)
         await client(DeleteMessagesRequest(event.chat_id, [event.action_message.id]))
 
-# Fancy message when using the /wipeout command
+# Fancy message when using the /wipeout command (Admins only)
 @client.on(events.NewMessage(pattern="^/wipeout$"))
 async def wipeout_service_messages(event):
-    if event.is_group:
+    if event.is_group and event.sender_id in await get_admins(event.chat_id):
+        wipeout_enabled_groups.add(event.chat_id)
         await event.reply("🧹 **From now on, I'll delete all service messages automatically!**\nNo more spam in the chat! 🚀")
+    else:
+        await event.reply("⚠ **Only group admins can use this command!**")
+
+# Function to get admins
+async def get_admins(chat_id):
+    return {admin.user_id async for admin in client.iter_participants(chat_id, filter=1)}
 
 # Help command for admins
 @client.on(events.NewMessage(pattern="^/adminhelp$"))
 async def admin_help(event):
-    if event.is_group:
+    if event.is_group and event.sender_id in await get_admins(event.chat_id):
         await event.reply("🛠 **Admin Commands:**\n\n"
                           "🔹 `/wipeout` → **Enable automatic service message deletion**.\n"
                           "🔹 `/invite` → **Generate invite links in DM**.\n\n"
