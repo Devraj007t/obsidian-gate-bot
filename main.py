@@ -1,5 +1,5 @@
 from telethon import TelegramClient, events
-from telethon.tl.functions.messages import ExportChatInviteRequest, DeleteMessagesRequest, GetParticipantsRequest
+from telethon.tl.functions.messages import ExportChatInviteRequest, DeleteMessagesRequest
 from telethon.tl.types import ChannelParticipantsAdmins
 import os
 import asyncio
@@ -15,14 +15,16 @@ if not API_ID or not API_HASH or not BOT_TOKEN:
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 wipeout_enabled_groups = set()  # Store groups that enabled /wipeout
+user_invites = {}  # Store invite timestamps {user_id: {group_id: timestamp}}
 
-# ✅ Automatically Delete Service Messages (Join/Leave/Bot Added)
+# ✅ Delete Service Messages (Join/Leave/Bot Added)
 @client.on(events.ChatAction)
 async def delete_service_messages(event):
     if event.chat_id in wipeout_enabled_groups and event.action_message:
         try:
-            await asyncio.sleep(1)
+            await asyncio.sleep(1)  # Delay before deletion
             await client(DeleteMessagesRequest(event.chat_id, [event.action_message.id]))
+            print(f"✅ Deleted service message in {event.chat_id}")
         except Exception as e:
             print(f"⚠ Failed to delete service message: {e}")
 
@@ -31,7 +33,7 @@ async def delete_service_messages(event):
 async def wipeout_service_messages(event):
     if event.is_group and event.sender_id in await get_admins_and_owner(event.chat_id):
         wipeout_enabled_groups.add(event.chat_id)
-        await event.reply("🧹 **From now on, I'll delete all service messages automatically!**\nNo more spam in the chat! 🚀")
+        await event.reply("🧹 **From now on, I'll delete all service messages automatically!** 🚀")
     else:
         await event.reply("⚠ **Only group admins or the owner can use this command!**")
 
@@ -43,8 +45,6 @@ async def get_admins_and_owner(chat_id):
     return admins
 
 # ✅ Generate Invite Link Feature (Users Can Generate Again After 1 Hour)
-user_invites = {}  # Store invite timestamps {user_id: {group_id: timestamp}}
-
 async def generate_invite(group_id, user_id):
     now = asyncio.get_event_loop().time()
     if user_id in user_invites and group_id in user_invites[user_id]:
