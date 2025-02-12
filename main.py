@@ -1,7 +1,5 @@
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import ExportChatInviteRequest, DeleteMessagesRequest
-from telethon.tl.functions.channels import GetParticipantRequest
-from telethon.tl.types import ChannelParticipantAdmin, ChannelParticipantCreator
 import os
 import asyncio
 import time
@@ -14,13 +12,13 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not API_ID or not API_HASH or not BOT_TOKEN:
     raise ValueError("⚠ API credentials or bot token not set. Please check your environment variables.")
 
-# Store user invite requests with timestamps (user_id -> group_id -> timestamp)
-user_invites = {}  # Example: {123456789: {"-100987654321": 1700000000}}
+# Store user invite requests with timestamps
+user_invites = {}  # {user_id: {group_id: timestamp}}
 
 # Initialize the bot
 client = TelegramClient("bot_session", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# Function to generate an invite link with cooldown
+# Function to generate a unique invite link
 async def generate_invite(group_id, user_id):
     current_time = time.time()
 
@@ -31,9 +29,7 @@ async def generate_invite(group_id, user_id):
 
         if time_passed < 3600:  # 1 hour in seconds
             remaining_time = int(3600 - time_passed)
-            minutes = remaining_time // 60
-            seconds = remaining_time % 60
-            return f"⏳ You can generate a new invite link for this group in **{minutes} minutes {seconds} seconds**."
+            return f"⏳ You can generate a new invite link for this group in {remaining_time} seconds."
 
     try:
         group_id = int(group_id)  # Ensure group_id is an integer
@@ -69,31 +65,15 @@ async def send_invite(event):
         invite_link = await generate_invite(group_id, user_id)
         await event.reply(f"🎟 Your invite link:\n{invite_link}\n\n⚠ You can generate an invite link for a group only once per hour. If you need a new invite link sooner, please contact the group admin @amber_66n.")
 
-# Function to check if a user is an admin or owner
-async def is_admin_or_owner(chat_id, user_id):
-    try:
-        participant = await client(GetParticipantRequest(chat_id, user_id))
-        return isinstance(participant.participant, (ChannelParticipantAdmin, ChannelParticipantCreator))
-    except:
-        return False
-
-# Command to clean bot service messages manually (Admins & Owners only)
+# Command to clean bot service messages manually
 @client.on(events.NewMessage(pattern="^/wipeout$"))
 async def clean_service_messages(event):
-    if not await is_admin_or_owner(event.chat_id, event.sender_id):
-        await event.reply("⚠️ Only admins and the owner can use this command.")
-        return
-
-    deleted_count = 0
-    async for message in client.iter_messages(event.chat_id, from_user="me"):
-        if "✅ Bot added to" in message.text and "📌 Group ID:" in message.text:
-            await client(DeleteMessagesRequest(event.chat_id, [message.id]))
-            deleted_count += 1
-
-    if deleted_count > 0:
-        await event.reply("🧹 From now on, I'll delete all service messages automatically! 🚀")
-    else:
-        await event.reply("✅ No service messages found!")
+    if event.is_group:
+        async for message in client.iter_messages(event.chat_id, from_user="me"):
+            if "✅ Bot added to" in message.text and "📌 Group ID:" in message.text:
+                await client(DeleteMessagesRequest(event.chat_id, [message.id]))
+                await event.reply("✅ Wiped out all bot service messages!")
+                return
 
 # Auto-delete bot service messages
 @client.on(events.NewMessage())
@@ -105,4 +85,3 @@ async def auto_delete_bot_message(event):
 
 print("✅ Bot is running...")
 client.run_until_disconnected()
-
